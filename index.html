@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bottle Spin: Truth & Dare (Pro Edition)</title>
+    <!-- Dependencies -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;700;900&display=swap');
+
+        body {
+            background-color: #020617;
+            color: white;
+            font-family: 'Outfit', sans-serif;
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            touch-action: manipulation;
+        }
+
+        .bottle-transition {
+            transition: transform 4s cubic-bezier(0.2, 0, 0.2, 1);
+        }
+
+        .neon-glow {
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .custom-scroll::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .custom-scroll::-webkit-scrollbar-thumb {
+            background: #312e81;
+            border-radius: 10px;
+        }
+
+        .fade-in {
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // --- EXTENDED QUESTION DATABASE (Bigger Set to avoid repeats) ---
+        const GAME_DATA = {
+            truth: {
+                male: {
+                    normal: [
+                        { hi: "Tumne aakhri baar kab jhoot bola tha?", en: "When was the last time you told a lie?" },
+                        { hi: "Tumhara sabse bada bachpan ka dar kya hai?", en: "What is your biggest childhood fear?" },
+                        { hi: "Kya tumne kabhi school mein cheat kiya hai?", en: "Have you ever cheated in school?" },
+                        { hi: "Tumhari sabse embarrassing gym story kya hai?", en: "What is your most embarrassing gym story?" },
+                        { hi: "Agar tum ek din ke liye invisible ho jao, toh kya karoge?", en: "If you were invisible for a day, what would you do?" },
+                        { hi: "Tumne kabhi kisi ladki ke liye rona dhona kiya hai?", en: "Have you ever cried for a girl?" },
+                        { hi: "Tumhari aakhri search history kya hai?", en: "What is your last search history?" },
+                        { hi: "Tumne sabse bekaar gift kya diya hai?", en: "What's the worst gift you've ever given?" },
+                        { hi: "Kya tumne kabhi apne kisi friend ke girlfriend par line maari hai?", en: "Have you ever hit on a friend's girlfriend?" },
+                        { hi: "Tumhare phone mein sabse ajeeb photo konsi hai?", en: "What's the weirdest photo on your phone?" },
+                        { hi: "Kya tumne kabhi public mein pad mara hai?", en: "Have you ever farted in public?" },
+                        { hi: "Tumhe kis baat par sabse zyada gussa aata hai?", en: "What makes you the angriest?" }
+                    ],
+                    spicy: [
+                        { hi: "Tumhe ladkiyon mein sabse pehle kya attractive lagta hai?", en: "What's the first thing you find attractive in a girl?" },
+                        { hi: "Kise tum yahan 'accidently' kiss karna chahoge?", en: "Who here would you 'accidentally' want to kiss?" },
+                        { hi: "Kya tumne kabhi do ladkiyon ko ek saath date kiya hai?", en: "Have you ever dated two girls at the same time?" },
+                        { hi: "Tumhari sabse wild rejection story kya hai?", en: "What is your wildest rejection story?" },
+                        { hi: "Kya tumne kabhi 'risky' text bheja hai?", en: "Have you ever sent a 'risky' text?" },
+                        { hi: "Tumhare liye ek 'perfect date' kya hai?", en: "What's a 'perfect date' for you?" },
+                        { hi: "Tumhe sabse gandi aadat kya lagti hai?", en: "What's the dirtiest habit you have?" },
+                        { hi: "Kya tumne kabhi kisi stranger ko approach kiya hai?", en: "Have you ever approached a stranger?" }
+                    ],
+                    extreme: [
+                        { hi: "Tumhara sabse bada bedroom secret kya hai?", en: "What is your biggest bedroom secret?" },
+                        { hi: "Is room mein kiske saath tum ek raat bitana chahoge?", en: "Who in this room would you want to spend a night with?" },
+                        { hi: "Kya tumne kabhi public place mein wild kiya hai?", en: "Have you ever done something wild in a public place?" },
+                        { hi: "Tumne sabse bold cheez kya ki hai?", en: "What is the boldest thing you've ever done?" },
+                        { hi: "Tumhari wildest fantasy kya hai?", en: "What's your wildest fantasy?" }
+                    ]
+                },
+                female: {
+                    normal: [
+                        { hi: "Tumne aakhri baar kiske baare mein gossips ki thi?", en: "Who was the last person you gossiped about?" },
+                        { hi: "Tumhara dream wedding destination kya hai?", en: "What is your dream wedding destination?" },
+                        { hi: "Kya tumne kabhi kisi se picha chudane ke liye jhoot bola hai?", en: "Have you ever lied to get rid of someone?" },
+                        { hi: "Tumhari sabse badi shopping regret kya hai?", en: "What is your biggest shopping regret?" },
+                        { hi: "Tumhara sabse bada insecurity kya hai?", en: "What is your biggest insecurity?" },
+                        { hi: "Tumhari sabse embarrassing celebrity crush?", en: "Who's your most embarrassing celebrity crush?" },
+                        { hi: "Tumhe sabse zyada kya irritate karta hai?", en: "What irritates you the most?" },
+                        { hi: "Tumne aakhri baar kab makeup pehen kar soyi ho?", en: "When was the last time you slept with makeup on?" },
+                        { hi: "Kya tumne kabhi kisi ladke ko stalk kiya hai?", en: "Have you ever stalked a guy?" }
+                    ],
+                    spicy: [
+                        { hi: "Ladkon mein sabse zyada turn-off kya lagta hai?", en: "What is the biggest turn-off for you in guys?" },
+                        { hi: "Tumhara sabse wild crush kiske upar hai?", en: "Who is your wildest crush?" },
+                        { hi: "Kiske saath tum ek raat bitana chahogi?", en: "Who would you want to spend a night with?" },
+                        { hi: "Kya tumne kabhi kisi friend ke boyfriend par line maari hai?", en: "Have you ever hit on a friend's boyfriend?" },
+                        { hi: "Tumhe kis tarah ki tareef sabse achi lagti hai?", en: "What kind of compliment do you like the most?" },
+                        { hi: "Kya tumne kabhi pool mein 'sharaarat' ki hai?", en: "Have you ever been 'naughty' in a pool?" }
+                    ],
+                    extreme: [
+                        { hi: "Tumne sabse bold dress kab pehni thi?", en: "When did you wear your boldest outfit?" },
+                        { hi: "Tumhari sabse wild fantasy kya hai?", en: "What is your wildest fantasy?" },
+                        { hi: "Kya tumne kabhi kisi ko drunk call karke confession kiya hai?", en: "Have you ever drunk-called someone and confessed?" },
+                        { hi: "Sabse bold cheez jo tumne bedroom mein ki ho?", en: "What's the boldest thing you've done in the bedroom?" }
+                    ]
+                }
+            },
+            dare: {
+                male: {
+                    normal: [
+                        { hi: "Agli 2 turns tak ek statue ki tarah raho.", en: "Act like a statue for the next 2 turns." },
+                        { hi: "Apne phone ke aakhri 5 search results dikhao.", en: "Show your last 5 search results on your phone." },
+                        { hi: "Apni sabse buri awaaz mein ek gaana gao.", en: "Sing a song in your worst possible voice." },
+                        { hi: "Kisi random insaan ko call karke kaho 'Mujhe tumse pyar hai'.", en: "Call a random person and say 'I love you'." }
+                    ],
+                    spicy: [
+                        { hi: "Apne crush ko ek flirty text bhejo aur screenshot dikhao.", en: "Send a flirty text to your crush and show the screenshot." },
+                        { hi: "Apne left waale insaan ko 30 seconds tak aankhon mein dekho.", en: "Stare into the eyes of the person to your left for 30 seconds." },
+                        { hi: "Kisi random ladki ko call karke kaho 'I love your voice'.", en: "Call a random girl and say 'I love your voice'." },
+                        { hi: "Room mein maujood kisi ladki ko ek 'hot' pick-up line sunao.", en: "Say a 'hot' pick-up line to a girl in the room." }
+                    ],
+                    extreme: [
+                        { hi: "Apni t-shirt utaaro aur 1 min tak bina t-shirt raho.", en: "Take off your shirt and stay without it for 1 min." },
+                        { hi: "Kisi ladki ko 'lap dance' do (sirf 30 seconds).", en: "Give a girl a 'lap dance' (only 30 seconds)." }
+                    ]
+                },
+                female: {
+                    normal: [
+                        { hi: "Kisi random insaan ko call karke 'Happy Birthday' gao.", en: "Call a random person and sing 'Happy Birthday'." },
+                        { hi: "Apni gallery ki sabse bekaar photo dikhao.", en: "Show the worst photo in your gallery." },
+                        { hi: "Ek funny ramp walk karke dikhao.", en: "Do a funny ramp walk." }
+                    ],
+                    spicy: [
+                        { hi: "Kiske saath tum yahan 'slow dance' karna chahogi?", en: "Who would you like to slow dance with here?" },
+                        { hi: "Apne phone se aakhri chat read karo (word to word).", en: "Read your last chat out loud (word for word)." },
+                        { hi: "Kisi ke kaan mein ek seductive sentence bolo.", en: "Whisper something seductive into someone's ear." },
+                        { hi: "Apne phone se aakhri search history read karo.", en: "Read your last search history out loud." }
+                    ],
+                    extreme: [
+                        { hi: "Kisi ladke ko 'lap dance' do (sirf 30 seconds).", en: "Give a guy a 'lap dance' (only 30 seconds)." },
+                        { hi: "Apne partner ya crush ke neck par ek 'mark' chhodo.", en: "Leave a 'mark' on your partner or crush's neck." }
+                    ]
+                }
+            }
+        };
+
+        const App = () => {
+            const [view, setView] = useState('disclaimer');
+            const [numPlayers, setNumPlayers] = useState(4);
+            const [players, setPlayers] = useState([]);
+            const [rotation, setRotation] = useState(0);
+            const [isSpinning, setIsSpinning] = useState(false);
+            const [winnerIndex, setWinnerIndex] = useState(null);
+            const [difficulty, setDifficulty] = useState('normal');
+            const [content, setContent] = useState(null);
+            const [mode, setMode] = useState(null);
+
+            // FAIR SPIN: Track who has already played in the current round
+            const [playedInRound, setPlayedInRound] = useState([]);
+            // NO REPEAT: Track used questions
+            const [usedQuestions, setUsedQuestions] = useState(new Set());
+
+            const startSetup = () => {
+                setPlayers(Array.from({ length: numPlayers }, (_, i) => ({
+                    name: `Player ${i + 1}`,
+                    gender: 'male'
+                })));
+                setView('names');
+            };
+
+            const startGame = () => setView('play');
+
+            const spin = () => {
+                if (isSpinning) return;
+                setIsSpinning(true);
+                setWinnerIndex(null);
+
+                // --- FAIR SPIN LOGIC ---
+                let availableIndices = players.map((_, i) => i).filter(i => !playedInRound.includes(i));
+
+                // If everyone has played, reset the round
+                if (availableIndices.length === 0) {
+                    availableIndices = players.map((_, i) => i);
+                    setPlayedInRound([]);
+                }
+
+                const nextWinner = availableIndices[Math.floor(Math.random() * availableIndices.length)];
+
+                const segment = 360 / players.length;
+                const targetAngle = nextWinner * segment;
+                const extraSpins = (8 + Math.floor(Math.random() * 4)) * 360;
+
+                const currentMod = rotation % 360;
+                const distance = (targetAngle - currentMod + 360) % 360;
+                const finalRotation = rotation + extraSpins + distance;
+
+                setRotation(finalRotation);
+
+                setTimeout(() => {
+                    setIsSpinning(false);
+                    setWinnerIndex(nextWinner);
+                    setPlayedInRound(prev => [...prev, nextWinner]);
+                }, 4000);
+            };
+
+            const selectTask = (type) => {
+                const winner = players[winnerIndex];
+                let pool = GAME_DATA[type][winner.gender][difficulty];
+
+                // --- NO REPEAT LOGIC ---
+                let filteredPool = pool.filter(q => !usedQuestions.has(q.hi));
+
+                // If all questions in this category are used, reset for this category
+                if (filteredPool.length === 0) {
+                    // Clear only current category related questions from set
+                    const newSet = new Set(usedQuestions);
+                    pool.forEach(q => newSet.delete(q.hi));
+                    setUsedQuestions(newSet);
+                    filteredPool = pool;
+                }
+
+                const task = filteredPool[Math.floor(Math.random() * filteredPool.length)];
+
+                // Mark as used
+                setUsedQuestions(prev => new Set(prev).add(task.hi));
+
+                setMode(type);
+                setContent(task);
+                setView('task');
+            };
+
+            const nextTurn = () => {
+                setWinnerIndex(null);
+                setContent(null);
+                setMode(null);
+                setView('play');
+            };
+
+            // Views logic...
+            if (view === 'disclaimer') return (
+                <div className="flex flex-col items-center justify-center h-screen p-8 text-center bg-slate-950">
+                    <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mb-6 border border-rose-500 animate-pulse text-rose-500 text-4xl font-black">!</div>
+                    <h1 className="text-4xl font-black uppercase mb-4 tracking-tighter">18+ Alert</h1>
+                    <p className="text-slate-400 mb-10 text-lg">Ye game party ke liye hai aur isme bold content hai. Proceed tabhi karein agar aap 18+ hain.</p>
+                    <button onClick={() => setView('setup')} className="w-full max-w-xs py-4 bg-rose-600 rounded-2xl font-bold uppercase tracking-widest active:scale-95 shadow-lg shadow-rose-900/40">Enter Party</button>
+                </div>
+            );
+
+            if (view === 'setup') return (
+                <div className="flex flex-col justify-center h-screen p-8 bg-slate-950">
+                    <h2 className="text-3xl font-black text-indigo-500 mb-2 italic uppercase">Kitne Players?</h2>
+                    <div className="grid grid-cols-4 gap-3 my-10">
+                        {[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(n => (
+                            <button key={n} onClick={() => setNumPlayers(n)} className={`h-14 rounded-xl font-black border-2 transition-all ${numPlayers === n ? 'bg-indigo-600 border-indigo-400 scale-110 shadow-lg text-white' : 'bg-slate-900 border-slate-800 text-slate-500'}`}>{n}</button>
+                        ))}
+                    </div>
+                    <button onClick={startSetup} className="w-full py-5 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest active:scale-95">Continue</button>
+                </div>
+            );
+
+            if (view === 'names') return (
+                <div className="flex flex-col h-screen p-8 bg-slate-950">
+                    <h2 className="text-3xl font-black text-indigo-500 mb-2 italic uppercase">Player Details</h2>
+                    <p className="text-slate-500 mb-6 font-bold text-sm">Naam aur Gender select karein.</p>
+                    <div className="flex-1 overflow-y-auto space-y-6 pr-2 custom-scroll mb-8">
+                        {players.map((p, i) => (
+                            <div key={i} className="bg-slate-900 p-4 rounded-3xl border border-slate-800 space-y-4">
+                                <input type="text" value={p.name} onChange={(e) => {
+                                    const newP = [...players]; newP[i].name = e.target.value; setPlayers(newP);
+                                }} className="w-full p-3 bg-slate-950 border border-slate-800 rounded-xl outline-none focus:border-indigo-500 font-bold text-white" placeholder={`Player ${i + 1}`} />
+                                <div className="flex gap-2">
+                                    <button onClick={() => { const n = [...players]; n[i].gender = 'male'; setPlayers(n); }} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${p.gender === 'male' ? 'bg-blue-600 text-white' : 'bg-slate-800 text-slate-500'}`}>MALE</button>
+                                    <button onClick={() => { const n = [...players]; n[i].gender = 'female'; setPlayers(n); }} className={`flex-1 py-2 rounded-lg text-xs font-black transition-all ${p.gender === 'female' ? 'bg-pink-600 text-white' : 'bg-slate-800 text-slate-500'}`}>FEMALE</button>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                    <button onClick={startGame} className="w-full py-5 bg-indigo-600 rounded-2xl font-black uppercase tracking-widest active:scale-95">Spin Time!</button>
+                </div>
+            );
+
+            if (view === 'task') return (
+                <div className="flex flex-col items-center justify-center h-screen p-8 bg-slate-950 text-center fade-in">
+                    <div className={`w-full max-w-md p-10 rounded-[40px] border-2 shadow-2xl relative bg-slate-900 ${mode === 'dare' ? 'border-rose-500/50' : 'border-indigo-500/50'}`}>
+                        <div className="mb-10"><span className="px-6 py-2 rounded-full text-[10px] font-black uppercase bg-slate-800 border border-slate-700 tracking-widest text-slate-400">{difficulty} {mode}</span></div>
+                        <h2 className="text-2xl md:text-3xl font-black mb-8 leading-tight text-white">{content.hi}</h2>
+                        <div className="w-12 h-1 bg-slate-800 mx-auto mb-8 rounded-full" />
+                        <p className="text-slate-400 italic mb-12 text-lg">"{content.en}"</p>
+                        <button onClick={nextTurn} className="w-full py-5 bg-indigo-600 rounded-3xl font-black uppercase tracking-wider text-white shadow-xl active:scale-95">Agli Turn</button>
+                    </div>
+                </div>
+            );
+
+            if (view === 'play') return (
+                <div className="flex flex-col h-screen bg-slate-950 p-6 relative">
+                    <div className="flex justify-between items-center z-50">
+                        <button onClick={() => setView('setup')} className="p-3 bg-slate-900 rounded-2xl border border-slate-800 text-slate-500 font-bold">Reset</button>
+                        <div className="flex bg-slate-900 p-1 rounded-full border border-slate-800">
+                            {['normal', 'spicy', 'extreme'].map(l => (
+                                <button key={l} onClick={() => setDifficulty(l)} className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase transition-all ${difficulty === l ? 'bg-indigo-600 text-white' : 'text-slate-500'}`}>{l}</button>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="flex-1 relative flex items-center justify-center">
+                        <div className="absolute w-[82vw] h-[82vw] max-w-[380px] max-h-[380px] border border-slate-800/30 rounded-full">
+                            {players.map((p, i) => {
+                                const angle = (i * (360 / players.length)) - 90;
+                                const radius = 50;
+                                return (
+                                    <div key={i} className={`absolute transition-all duration-700 ${winnerIndex === i ? 'z-50' : 'z-10'}`} style={{
+                                        left: `${50 + radius * Math.cos(angle * Math.PI / 180)}%`,
+                                        top: `${50 + radius * Math.sin(angle * Math.PI / 180)}%`,
+                                        transform: 'translate(-50%, -50%)'
+                                    }}>
+                                        <div className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-500 ${winnerIndex === i ? 'bg-indigo-500 text-white scale-125 border-indigo-400 shadow-[0_0_20px_rgba(99,102,241,0.6)] font-black' : 'bg-slate-900 text-slate-500 border-slate-800'}`}>
+                                            {p.name}
+                                            <span className={`block text-[8px] uppercase ${p.gender === 'male' ? 'text-blue-400' : 'text-pink-400'}`}>{p.gender}</span>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        <div className="w-44 h-44 z-20 bottle-transition flex items-center justify-center cursor-pointer" style={{ transform: `rotate(${rotation}deg)` }} onClick={spin}>
+                            <svg viewBox="0 0 100 100" className="w-full h-full drop-shadow-2xl">
+                                <path d="M50 2 L42 22 L42 82 L45 88 L55 88 L58 82 L58 22 Z" fill="#6366f1" stroke="#4f46e5" strokeWidth="1" />
+                                <rect x="46" y="5" width="8" height="4" fill="#1e1b4b" rx="1" />
+                                <circle cx="50" cy="50" r="4" fill="#1e1b4b" opacity="0.3" />
+                                <circle cx="50" cy="15" r="2" fill="white" opacity="0.4" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div className="h-44 flex flex-col justify-end pb-10 z-50">
+                        {winnerIndex === null ? (
+                            <button onClick={spin} disabled={isSpinning} className="w-full py-5 bg-cyan-500 text-slate-950 font-black rounded-3xl uppercase tracking-widest text-lg active:scale-95 disabled:opacity-50 neon-glow">
+                                {isSpinning ? 'SPINNING...' : 'TAP TO SPIN'}
+                            </button>
+                        ) : (
+                            <div className="flex flex-col gap-4 fade-in">
+                                <p className="text-center text-indigo-400 font-black uppercase italic text-xl mb-2">{players[winnerIndex].name}'s Turn!</p>
+                                <div className="flex gap-4">
+                                    <button onClick={() => selectTask('truth')} className="flex-1 py-5 bg-slate-800 text-indigo-400 rounded-3xl font-black uppercase border border-indigo-500/30 active:scale-95">Truth</button>
+                                    <button onClick={() => selectTask('dare')} className="flex-1 py-5 bg-rose-600 text-white rounded-3xl font-black uppercase shadow-lg shadow-rose-900/30 active:scale-95">Dare</button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            );
+
+            return null;
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+
+</html>
